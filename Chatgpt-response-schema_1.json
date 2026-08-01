@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Chatgpt Classification Response Schema",
+  "description": "Schema for Gemini AI classification response",
+  "type": "object",
+  "required": ["clasificacion", "confianza", "resumen"],
+  "properties": {
+    "clasificacion": {
+      "type": "string",
+      "enum": ["VIP", "NORMAL", "SPAM"],
+      "description": "Lead classification category",
+      "example": "VIP"
+    },
+    "confianza": {
+      "type": "integer",
+      "description": "Confidence score of the classification (0-100)",
+      "minimum": 0,
+      "maximum": 100,
+      "example": 92
+    },
+    "resumen": {
+      "type": "string",
+      "description": "Brief explanation of the classification decision",
+      "minLength": 10,
+      "maxLength": 500,
+      "example": "Empresa grande (750 empleados), presupuesto alto, urgencia expresada"
+    },
+    "criterios_aplicados": {
+      "type": "array",
+      "description": "List of criteria that influenced the classification",
+      "items": {
+        "type": "string"
+      },
+      "example": [
+        "Tamaño empresa: 750 empleados (> 500 = VIP)",
+        "Presupuesto: $50,000 (> $30k)",
+        "Urgencia: menciona 'procesos de ventas'"
+      ]
+    },
+    "puntuacion_detallada": {
+      "type": "object",
+      "description": "Detailed scoring breakdown",
+      "properties": {
+        "tamaño_empresa": {
+          "type": "number",
+          "description": "Score based on company size (0-40)",
+          "example": 40
+        },
+        "presupuesto": {
+          "type": "number",
+          "description": "Score based on budget (0-30)",
+          "example": 30
+        },
+        "urgencia": {
+          "type": "number",
+          "description": "Score based on urgency signals (0-20)",
+          "example": 22
+        },
+        "industria": {
+          "type": "number",
+          "description": "Score based on industry relevance (0-10)",
+          "example": 0
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Lead Classification Request Schema",
+  "description": "Schema for incoming webhook requests to the lead classifier",
+  "type": "object",
+  "required": ["nombre", "email", "empresa", "tamaño_empleados", "descripcion"],
+  "properties": {
+    "nombre": {
+      "type": "string",
+      "description": "Full name of the lead contact",
+      "minLength": 2,
+      "maxLength": 100,
+      "example": "Juan García"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Email address of the lead",
+      "example": "juan@empresa.com"
+    },
+    "empresa": {
+      "type": "string",
+      "description": "Company name",
+      "minLength": 2,
+      "maxLength": 150,
+      "example": "Tech Solutions Inc"
+    },
+    "tamaño_empleados": {
+      "type": "integer",
+      "description": "Number of employees in the company",
+      "minimum": 1,
+      "maximum": 1000000,
+      "example": 750
+    },
+    "descripcion": {
+      "type": "string",
+      "description": "Description of the lead's needs or inquiry",
+      "minLength": 10,
+      "maxLength": 1000,
+      "example": "Necesitamos automatizar nuestros procesos de ventas"
+    },
+    "presupuesto": {
+      "type": "number",
+      "description": "Estimated budget in USD (optional)",
+      "minimum": 0,
+      "maximum": 10000000,
+      "example": 50000
+    }
+  }
+}

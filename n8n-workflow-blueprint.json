@@ -1,0 +1,206 @@
+{
+  "name": "Clasificación Automática de Leads VIP",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "lead-classifier",
+        "responseMode": "immediately",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Lead Form Submission",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "{{WEBHOOK_ID}}"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "databaseId": "{{NOTION_DATABASE_ID}}",
+        "title": "={{$node.Webhook.json.body.nombre}}",
+        "properties": {
+          "Email": "={{$node.Webhook.json.body.email}}",
+          "Empresa": "={{$node.Webhook.json.body.empresa}}",
+          "Tamaño_Empleados": "={{$node.Webhook.json.body.tamaño_empleados}}",
+          "Descripción": "={{$node.Webhook.json.body.descripcion}}",
+          "Presupuesto": "={{$node.Webhook.json.body.presupuesto}}",
+          "Timestamp_Entrada": "={{new Date().toISOString()}}"
+        }
+      },
+      "id": "notion_create_lead",
+      "name": "Notion - Create Lead",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [500, 300],
+      "credentials": {
+        "notionApi": "notion_credentials"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "generateContent",
+        "model": "gemini-2.0-flash",
+        "prompt": "Clasifica este lead por tamaño de empresa:\n\nEmpresa: {{$node.Webhook.json.body.empresa}}\nTamaño: {{$node.Webhook.json.body.tamaño_empleados}} empleados\nDescripción: {{$node.Webhook.json.body.descripcion}}\nPresupuesto: ${{$node.Webhook.json.body.presupuesto}}\n\nCRITERIOS:\n- Si tamaño > 500: VIP\n- Si tamaño 100-500: NORMAL\n- Si tamaño < 100: SPAM\n\nResponde SOLO este JSON sin preamble:\n{\n  \"clasificacion\": \"VIP|NORMAL|SPAM\",\n  \"confianza\": 0-100,\n  \"resumen\": \"razón en 1-2 líneas\"\n}",
+        "options": {
+          "maxTokens": 150
+        }
+      },
+      "id": "gemini_classify",
+      "name": "Gemini - Classify Lead",
+      "type": "n8n-nodes-base.google.gemini",
+      "typeVersion": 1,
+      "position": [750, 300],
+      "credentials": {
+        "googleGenerativeAiApi": "gemini_api_key"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "databaseId": "{{NOTION_DATABASE_ID}}",
+        "id": "={{$node['Notion - Create Lead'].json.id}}",
+        "properties": {
+          "Clasificación": "={{$node['Gemini - Classify Lead'].json.clasificacion}}",
+          "Confianza": "={{$node['Gemini - Classify Lead'].json.confianza}}",
+          "Resumen_Análisis": "={{$node['Gemini - Classify Lead'].json.resumen}}"
+        }
+      },
+      "id": "notion_update_classification",
+      "name": "Notion - Update Classification",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [1000, 300],
+      "credentials": {
+        "notionApi": "notion_credentials"
+      }
+    },
+    {
+      "parameters": {
+        "to": "={{$node.Webhook.json.body.email}}",
+        "subject": "Tu lead ha sido clasificado - {{$node.Webhook.json.body.empresa}}",
+        "textOnly": false,
+        "htmlBody": "<h2>Hola {{$node.Webhook.json.body.nombre}},</h2>\n<p>Tu solicitud ha sido analizada automáticamente.</p>\n<p><strong>CLASIFICACIÓN:</strong> {{$node['Gemini - Classify Lead'].json.clasificacion}}</p>\n<p><strong>Confianza:</strong> {{$node['Gemini - Classify Lead'].json.confianza}}%</p>\n<p><strong>Análisis:</strong> {{$node['Gemini - Classify Lead'].json.resumen}}</p>\n<p><strong>Empresa:</strong> {{$node.Webhook.json.body.empresa}}</p>\n<p><strong>Presupuesto:</strong> ${{$node.Webhook.json.body.presupuesto}}</p>\n<p>Un especialista se pondrá en contacto pronto.</p>\n<p>Saludos,<br/>Equipo de Sales</p>"
+      },
+      "id": "gmail_send_email",
+      "name": "Gmail - Send Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [1250, 300],
+      "credentials": {
+        "gmailOAuth2": "gmail_oauth"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "databaseId": "{{NOTION_DATABASE_ID}}",
+        "id": "={{$node['Notion - Create Lead'].json.id}}",
+        "properties": {
+          "Email_Enviado": true,
+          "Timestamp_Email": "={{new Date().toISOString()}}"
+        }
+      },
+      "id": "notion_final_update",
+      "name": "Notion - Update Final",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [1500, 300],
+      "credentials": {
+        "notionApi": "notion_credentials"
+      }
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "notion_create_lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "notion_create_lead": {
+      "main": [
+        [
+          {
+            "node": "gemini_classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gemini_classify": {
+      "main": [
+        [
+          {
+            "node": "notion_update_classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "notion_update_classification": {
+      "main": [
+        [
+          {
+            "node": "gmail_send_email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gmail_send_email": {
+      "main": [
+        [
+          {
+            "node": "notion_final_update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "America/Argentina/Buenos_Aires",
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "versionId": "{{VERSION_ID}}",
+  "meta": {
+    "instanceId": "{{INSTANCE_ID}}",
+    "templatesIds": [],
+    "modified": true,
+    "activated": true
+  },
+  "pinData": {},
+  "credentials": {
+    "notion_credentials": {
+      "name": "Notion API",
+      "type": "notionApi",
+      "data": {
+        "apiKey": "{{NOTION_API_KEY}}"
+      }
+    },
+    "gemini_api_key": {
+      "name": "Google Gemini API",
+      "type": "googleGenerativeAiApi",
+      "data": {
+        "apiKey": "{{GEMINI_API_KEY}}"
+      }
+    },
+    "gmail_oauth": {
+      "name": "Gmail OAuth",
+      "type": "gmailOAuth2",
+      "data": {}
+    }
+  },
+  "notes": "Clasificación Automática de Leads VIP\nFlujo completo: Webhook → Notion → Gemini → Gmail → Notion"
+}
